@@ -22,6 +22,9 @@ import org.json.JSONException
 import org.niatahl.tahlan.campaign.*
 import org.niatahl.tahlan.campaign.siege.LegioSiegeBaseIntel
 import org.niatahl.tahlan.plugins.CampaignPluginImpl
+import org.niatahl.tahlan.lostech.NXABarEventWiring
+import org.niatahl.tahlan.questgiver.Configuration
+import org.niatahl.tahlan.questgiver.Questgiver
 import org.niatahl.tahlan.utils.IndEvoIntegrations.addDefenses
 import org.niatahl.tahlan.utils.IndEvoIntegrations.upgradeDefenses
 import org.niatahl.tahlan.utils.TahlanPeople
@@ -62,9 +65,11 @@ class TahlanModPlugin : BaseModPlugin() {
         try {
             loadTahlanSettings()
         } catch (e: IOException) {
-            Global.getLogger(TahlanModPlugin::class.java).log(Level.ERROR, "tahlan_settings.json loading failed! ;....; " + e.message)
+            Global.getLogger(TahlanModPlugin::class.java)
+                .log(Level.ERROR, "tahlan_settings.json loading failed! ;....; " + e.message)
         } catch (e: JSONException) {
-            Global.getLogger(TahlanModPlugin::class.java).log(Level.ERROR, "tahlan_settings.json loading failed! ;....; " + e.message)
+            Global.getLogger(TahlanModPlugin::class.java)
+                .log(Level.ERROR, "tahlan_settings.json loading failed! ;....; " + e.message)
         }
 
 
@@ -76,6 +81,7 @@ class TahlanModPlugin : BaseModPlugin() {
                 SHIELD_HULLMODS.add("swp_shieldbypass") //Dirty fix for Shield Bypass, since that one is actually not tagged as a Shield mod, apparently
             }
         }
+        Questgiver.init(modPrefix = "tahlan")
     }
 
     //New game stuff
@@ -130,6 +136,13 @@ class TahlanModPlugin : BaseModPlugin() {
 
         CieveScript.register()
         DigitalSoulScript.register()
+	
+        Questgiver.onGameLoad()
+        Questgiver.loadQuests(
+            creators = listOf(NXABarEventWiring()), Configuration(
+                blacklist = Configuration.Blacklist(), whitelist = Configuration.Whitelist()
+            )
+        )
 
         if (!ENABLE_LIFELESS && sector.getFaction("remnant").knowsShip("tahlan_Timeless")) {
             sector.getFaction("remnant").apply {
