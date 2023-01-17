@@ -3,7 +3,7 @@ package org.niatahl.tahlan.utils;
 import com.fs.starfarer.api.Global;
 
 public class Utils {
-    private static final String tahlan = "tahlan";
+    public static final String tahlan = "tahlan";
 
     // For translation friendliness
     public static String txt(String id) {

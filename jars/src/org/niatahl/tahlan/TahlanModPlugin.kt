@@ -28,6 +28,7 @@ import org.niatahl.tahlan.questgiver.Questgiver
 import org.niatahl.tahlan.utils.IndEvoIntegrations.addDefenses
 import org.niatahl.tahlan.utils.IndEvoIntegrations.upgradeDefenses
 import org.niatahl.tahlan.utils.TahlanPeople
+import org.niatahl.tahlan.utils.Utils
 import org.niatahl.tahlan.weapons.ai.FountainAI
 import org.niatahl.tahlan.weapons.ai.KriegsmesserAI
 import org.niatahl.tahlan.weapons.ai.TwoStageMissileAI
@@ -65,11 +66,9 @@ class TahlanModPlugin : BaseModPlugin() {
         try {
             loadTahlanSettings()
         } catch (e: IOException) {
-            Global.getLogger(TahlanModPlugin::class.java)
-                .log(Level.ERROR, "tahlan_settings.json loading failed! ;....; " + e.message)
+            Global.getLogger(TahlanModPlugin::class.java).log(Level.ERROR, "tahlan_settings.json loading failed! ;....; " + e.message)
         } catch (e: JSONException) {
-            Global.getLogger(TahlanModPlugin::class.java)
-                .log(Level.ERROR, "tahlan_settings.json loading failed! ;....; " + e.message)
+            Global.getLogger(TahlanModPlugin::class.java).log(Level.ERROR, "tahlan_settings.json loading failed! ;....; " + e.message)
         }
 
 
@@ -81,7 +80,7 @@ class TahlanModPlugin : BaseModPlugin() {
                 SHIELD_HULLMODS.add("swp_shieldbypass") //Dirty fix for Shield Bypass, since that one is actually not tagged as a Shield mod, apparently
             }
         }
-        Questgiver.init(modPrefix = "tahlan")
+        Questgiver.init(modPrefix = Utils.tahlan)
     }
 
     //New game stuff

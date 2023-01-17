@@ -26,11 +26,12 @@ class NXABarEvent : BarEventLogic<NXAHubMission>(
             },
             options = listOf(
                 IInteractionLogic.Option(
+                    showIf = { true }, // Example
                     // accept
                     text = { game.text["nxa_stg1_pg1_opt1"] },
                     onOptionSelected = {
                         para { game.text["nxa_stg1_pg1_opt1_onSelected"] }
-                        mission.setCurrentStage(NXAHubMission.Stage.GoToScanMissionDest, dialog, null)
+                        mission.accept(dialog, null)
                         navigator.promptToContinue(game.text["nxa_stg1_pg1_opt1_onSelected_continue"]) {
                             it.close(doNotOfferAgain = true)
                         }
@@ -38,11 +39,9 @@ class NXABarEvent : BarEventLogic<NXAHubMission>(
                 ),
                 IInteractionLogic.Option(
                     // put the dialog text in a comment for reference, makes file easier to read
-                    showIf = { NXAHubMission.choices.askedWhyNotBuyOwnShip != true },
                     text = { game.text["nxa_stg1_pg1_opt2"] },
                     onOptionSelected = { navigator ->
                         para { game.text["nxa_stg1_pg1_opt2_onSelected"] }
-                        NXAHubMission.choices.askedWhyNotBuyOwnShip = true
                         navigator.refreshOptions()
                     }
                 ),
