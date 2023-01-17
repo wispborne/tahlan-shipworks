@@ -31,6 +31,8 @@ class NXABarEvent : BarEventLogic<NXAHubMission>(
                     text = { game.text["nxa_stg1_pg1_opt1"] },
                     onOptionSelected = {
                         para { game.text["nxa_stg1_pg1_opt1_onSelected"] }
+                        NXAHubMission.choices.someChoice = true // Example
+
                         mission.accept(dialog, null)
                         navigator.promptToContinue(game.text["nxa_stg1_pg1_opt1_onSelected_continue"]) {
                             it.close(doNotOfferAgain = true)

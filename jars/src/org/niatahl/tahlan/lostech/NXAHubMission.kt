@@ -4,11 +4,13 @@ import com.fs.starfarer.api.PluginPick
 import com.fs.starfarer.api.campaign.*
 import com.fs.starfarer.api.campaign.econ.MarketAPI
 import com.fs.starfarer.api.campaign.rules.MemoryAPI
+import com.fs.starfarer.api.characters.FullName
 import com.fs.starfarer.api.characters.PersonAPI
 import com.fs.starfarer.api.impl.campaign.ids.Conditions
 import com.fs.starfarer.api.impl.campaign.ids.Factions
 import com.fs.starfarer.api.impl.campaign.ids.FleetTypes
 import com.fs.starfarer.api.impl.campaign.ids.Tags
+import com.fs.starfarer.api.impl.campaign.missions.hub.HubMissionWithTriggers
 import com.fs.starfarer.api.impl.campaign.missions.hub.ReqMode
 import com.fs.starfarer.api.ui.TooltipMakerAPI
 import com.fs.starfarer.api.util.Misc
@@ -30,7 +32,11 @@ class NXAHubMission : QGHubMissionWithBarEvent(MISSION_ID) {
                 Choices(PersistentMapData<String, Any?>(key = "nxaChoices").withDefault { null })
         val tags = listOf(Tags.INTEL_STORY, Tags.INTEL_ACCEPTED)
         val cieve: PersonAPI
-            get() = TahlanPeople.getPerson(TahlanPeople.CIEVE)!! // She'd better exist.
+            get() = TahlanPeople.getPerson(TahlanPeople.CIEVE)
+                    ?: game.factory.createPerson().apply { name = FullName("Cieve", "", FullName.Gender.FEMALE) }
+        val allmother: PersonAPI
+            get() = TahlanPeople.getPerson(TahlanPeople.FEARLESS) // TODO should be ALLMOTHER
+                    ?: game.factory.createPerson().apply { name = FullName("ALLMOTHER", "", FullName.Gender.FEMALE) }
     }
 
     class State(val map: MutableMap<String, Any?>) {
@@ -80,7 +86,7 @@ class NXAHubMission : QGHubMissionWithBarEvent(MISSION_ID) {
         super.create(createdAt, barEvent)
         state.seed = genRandom
 
-        startingStage = Stage.GoToScanMissionDest
+        startingStage = Stage.GoMeetCieve
         setSuccessStage(Stage.Completed)
         setAbandonStage(Stage.Abandoned)
 
@@ -145,7 +151,7 @@ class NXAHubMission : QGHubMissionWithBarEvent(MISSION_ID) {
         state.startDateMillis = game.sector.clock.timestamp
 
         // Sets the system as the map objective.
-        makeImportant(state.meetingPlanet?.starSystem?.hyperspaceAnchor, null, Stage.GoToScanMissionDest)
+        makeImportant(state.meetingPlanet?.starSystem?.hyperspaceAnchor, null, Stage.GoMeetCieve)
         makePrimaryObjective(state.meetingPlanet?.starSystem?.hyperspaceAnchor)
 
         makeImportant(state.originalNXAStation, null, Stage.GoFindOriginalShipLocation)
@@ -153,13 +159,14 @@ class NXAHubMission : QGHubMissionWithBarEvent(MISSION_ID) {
 
         // TODO Nia look at fleet params, customize to liking.
         val lostechNXAFirstFleetFlag = "$${MISSION_ID}_lostechNXAFirstFleetFlag"
-//        val badFleetImportantFlag = "${badFleetFlag}_important"
+
+        // Create a Lostech fleet near the original NXA station for player to fight
         trigger {
             beginWithinHyperspaceRangeTrigger(
                     state.originalNXAStation?.starSystem,
                     1f,
                     true,
-                    Stage.GoToScanMissionDest
+                    Stage.GoMeetCieve
             )
 
             triggerCreateFleet(
@@ -178,18 +185,52 @@ class NXAHubMission : QGHubMissionWithBarEvent(MISSION_ID) {
             triggerPickLocationAroundEntity(state.originalNXAStation, 1f)
             triggerSpawnFleetAtPickedLocation(lostechNXAFirstFleetFlag, null)
             triggerOrderFleetPatrol(false, state.originalNXAStation)
-//            triggerFleetAddDefeatTrigger(badFleetDefeatTrigger)
-//            triggerFleetAddTags(PIRATE_FLEET_TAG)
+        }
+
+        // Shortly after starting AwaitAllmotherOffer stage, open the dialog with her.
+        // TODO check and make sure player isn't already in a dialog
+        trigger {
+            beginCustomTrigger(DaysElapsedChecker(0.25f, this), Stage.AwaitAllmotherOffer)
+            triggerCustomAction { AllmotherOfferDialog().build().show(game.sector.campaignUI, game.sector.playerFleet) }
         }
     }
 
     override fun pickInteractionDialogPlugin(interactionTarget: SectorEntityToken): PluginPick<InteractionDialogPlugin>? =
-            if (currentStage == Stage.GoFindOriginalShipLocation && interactionTarget == state.originalNXAStation) {
-                PluginPick(
-                        Telos2FirstLandingDialog().build(),
-                        CampaignPlugin.PickPriority.MOD_SPECIFIC
-                )
-            } else null
+            when {
+                // Meeting Cieve
+                currentStage == Stage.GoMeetCieve && interactionTarget.id == state.meetingPlanet?.id -> {
+                    PluginPick(
+                            MeetingCieveDialog().build(),
+                            CampaignPlugin.PickPriority.MOD_SPECIFIC
+                    )
+                }
+                // Found original NX-A location
+                currentStage == Stage.GoFindOriginalShipLocation && interactionTarget.id == state.originalNXAStation?.id -> {
+                    PluginPick(
+                            LostechStationDialog().build(),
+                            CampaignPlugin.PickPriority.MOD_SPECIFIC
+                    )
+                }
+                // Found the NX-A
+                currentStage == Stage.TrackDownAndRecoverNXA
+                        && interactionTarget is CampaignFleetAPI
+                        && interactionTarget.flagship.hullId == "tahlan_nxa" -> {
+                    PluginPick(
+                            RecoverNXADialog().build(),
+                            CampaignPlugin.PickPriority.MOD_SPECIFIC
+                    )
+                }
+                // Back at origin
+                currentStage == Stage.ReturnToOrigin
+                        && interactionTarget.id == state.startLocation?.id -> {
+                    PluginPick(
+                            DebriefWithCieveDialog().build(),
+                            CampaignPlugin.PickPriority.MOD_SPECIFIC
+                    )
+                }
+
+                else -> null
+            }
 
     override fun endSuccessImpl(dialog: InteractionDialogAPI?, memoryMap: MutableMap<String, MemoryAPI>?) {
         super.endSuccessImpl(dialog, memoryMap)
@@ -212,7 +253,7 @@ class NXAHubMission : QGHubMissionWithBarEvent(MISSION_ID) {
      */
     override fun addNextStepText(info: TooltipMakerAPI, tc: Color, pad: Float): Boolean {
         return when (currentStage) {
-            Stage.GoToScanMissionDest -> {
+            Stage.GoMeetCieve -> {
                 info.addPara(pad, tc) {
                     game.text["nxa_missionSubtitle"].replacePlaceholders()
                 }
@@ -229,17 +270,17 @@ class NXAHubMission : QGHubMissionWithBarEvent(MISSION_ID) {
     override fun addDescriptionForCurrentStage(info: TooltipMakerAPI, width: Float, height: Float) {
         // TODO
         when (currentStage) {
-            Stage.GoToScanMissionDest -> {
+            Stage.GoMeetCieve -> {
                 info.addPara { game.text["nxa_missionSubtitle"].replacePlaceholders() }
             }
         }
     }
 
     enum class Stage {
-        GoToScanMissionDest,
+        GoMeetCieve,
         GoFindOriginalShipLocation,
-        TrackDownNXA,
-        LostechDefeated,
+        TrackDownAndRecoverNXA,
+        AwaitAllmotherOffer,
         ReturnToOrigin,
         Completed,
         Abandoned,
