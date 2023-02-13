@@ -17,22 +17,16 @@ import org.lazywizard.lazylib.combat.CombatUtils
 import org.niatahl.tahlan.plugins.DaemonOfficerPlugin
 import org.niatahl.tahlan.utils.TahlanIDs.CORE_ARCHDAEMON
 import org.niatahl.tahlan.utils.TahlanIDs.CORE_DAEMON
-import org.niatahl.tahlan.utils.TahlanIDs.SOTF_NIGHTINGALE
+import org.niatahl.tahlan.utils.TahlanIDs.SOTF_CYWAR
 import org.niatahl.tahlan.utils.TahlanIDs.SOTF_SIERRA
 import org.niatahl.tahlan.utils.TahlanPeople.CIEVE
-import org.niatahl.tahlan.utils.Utils
+import org.niatahl.tahlan.utils.Utils.txt
 import java.awt.Color
-import kotlin.collections.HashMap
 import kotlin.math.roundToInt
 
 // There was some fun here. It was silly indeed.
 class DaemonHeart : BaseHullMod() {
     override fun applyEffectsBeforeShipCreation(hullSize: HullSize, stats: MutableShipStatsAPI, id: String) {
-        stats.projectileSpeedMult.modifyMult(id, 1f + ACC_BUFF)
-        stats.maxRecoilMult.modifyMult(id, 1f - ACC_BUFF)
-        stats.recoilDecayMult.modifyMult(id, 1f + ACC_BUFF)
-        stats.recoilPerShotMult.modifyMult(id, 1f - ACC_BUFF)
-        stats.damageToMissiles.modifyMult(id, 1f + MSSL_DAMAGE)
         stats.suppliesPerMonth.modifyPercent(id, SUPPLIES_PERCENT)
     }
 
@@ -53,9 +47,6 @@ class DaemonHeart : BaseHullMod() {
                 isPlayerFleet = true
             }
         }
-        if (!ship.variant.hasTag(Tags.SHIP_UNIQUE_SIGNATURE)) {
-            ship.variant.addTag(Tags.SHIP_UNIQUE_SIGNATURE)
-        }
         if (ship.variant.hasHullMod("tahlan_daemonboost")) {
             ship.variant.removeMod("tahlan_daemonboost")
         }
@@ -68,9 +59,10 @@ class DaemonHeart : BaseHullMod() {
 
     override fun advanceInCombat(ship: ShipAPI, amount: Float) {
         val engine = Global.getCombatEngine() ?: return
-        val speedBoost = 1f - Math.min(1f, ship.fluxLevel / SPEED_CAP)
-        ship.mutableStats.maxSpeed.modifyMult(dc_id, 1f + speedBoost * SPEED_BUFF)
-        if (engine.getFleetManager(ship.owner) === engine.getFleetManager(FleetSide.PLAYER)) {
+        val speedBoost = 1f - (ship.fluxLevel / SPEED_CAP).coerceIn(0f, 1f)
+        ship.mutableStats.maxSpeed.modifyFlat(dc_id, speedBoost * SPEED_BUFF)
+
+        if (engine.getFleetManager(ship.owner) == engine.getFleetManager(FleetSide.PLAYER)) {
             //Only run this in campaign context, not missions
             if (!engine.isInCampaign) {
                 return
@@ -83,13 +75,14 @@ class DaemonHeart : BaseHullMod() {
                 var counterPresent = false
 
                 CombatUtils.getShipsWithinRange(ship.location, 2000f).forEach { bote ->
+                    if (bote.isFighter || bote.captain == null) return@forEach
                     if (bote.hullSpec.hullId.contains("tahlan_DunScaith_dmn") && Math.random() > 0.75f
                         && bote.fleetMember.fleetCommander.faction.id.contains("legioinfernalis")
                         && bote.owner == 1
                     ) {
                         scaithPresent = true
                     }
-                    if (bote.captain.stats.hasSkill("sotf_cyberwarfare")) counterPresent = true
+                    if (bote.captain.stats.hasSkill(SOTF_CYWAR)) counterPresent = true
                 }
 
                 if (scaithPresent) {
@@ -103,7 +96,15 @@ class DaemonHeart : BaseHullMod() {
 
                     // player gets an overload instead of being yoinked
                     if (ship.captain.isPlayer) {
-                        engine.addFloatingText(ship.location, "DIRECT CONTROL ATTEMPT AVERTED", 40f, Color.RED, ship, 0.5f, 3f)
+                        engine.addFloatingText(
+                            ship.location,
+                            "DIRECT CONTROL ATTEMPT AVERTED",
+                            40f,
+                            Color.RED,
+                            ship,
+                            0.5f,
+                            3f
+                        )
                         ship.fluxTracker.forceOverload(15f)
                         return
                     }
@@ -114,12 +115,21 @@ class DaemonHeart : BaseHullMod() {
                     // yoinked from Xhan
                     if (ship.shipAI != null) {
                         //cancel orders so the AI doesn't get confused
-                        val member_a = Global.getCombatEngine().getFleetManager(FleetSide.PLAYER).getDeployedFleetMember(ship)
-                        if (member_a != null) Global.getCombatEngine().getFleetManager(FleetSide.PLAYER).getTaskManager(false).orderSearchAndDestroy(member_a, false)
-                        val member_aa = Global.getCombatEngine().getFleetManager(FleetSide.PLAYER).getDeployedFleetMember(ship)
-                        if (member_aa != null) Global.getCombatEngine().getFleetManager(FleetSide.PLAYER).getTaskManager(true).orderSearchAndDestroy(member_aa, false)
-                        val member_b = Global.getCombatEngine().getFleetManager(FleetSide.ENEMY).getDeployedFleetMember(ship)
-                        if (member_b != null) Global.getCombatEngine().getFleetManager(FleetSide.ENEMY).getTaskManager(false).orderSearchAndDestroy(member_b, false)
+                        val memberA =
+                            Global.getCombatEngine().getFleetManager(FleetSide.PLAYER).getDeployedFleetMember(ship)
+                        if (memberA != null) Global.getCombatEngine().getFleetManager(FleetSide.PLAYER)
+                            .getTaskManager(false).orderSearchAndDestroy(memberA, false)
+
+                        val memberB =
+                            Global.getCombatEngine().getFleetManager(FleetSide.PLAYER).getDeployedFleetMember(ship)
+                        if (memberB != null) Global.getCombatEngine().getFleetManager(FleetSide.PLAYER)
+                            .getTaskManager(true).orderSearchAndDestroy(memberB, false)
+
+                        val memberC =
+                            Global.getCombatEngine().getFleetManager(FleetSide.ENEMY).getDeployedFleetMember(ship)
+                        if (memberC != null) Global.getCombatEngine().getFleetManager(FleetSide.ENEMY)
+                            .getTaskManager(false).orderSearchAndDestroy(memberC, false)
+
                         ship.shipAI.forceCircumstanceEvaluation()
                     }
 
@@ -136,6 +146,8 @@ class DaemonHeart : BaseHullMod() {
             // Enrage function
             val enrage = 1f - ship.hullLevel
             ship.mutableStats.timeMult.modifyMult(dc_id, 1f + enrage * 0.25f)
+            ship.mutableStats.energyWeaponRangeBonus.modifyMult(dc_id, 1f - enrage * 0.25f)
+            ship.mutableStats.ballisticWeaponRangeBonus.modifyMult(dc_id, 1f - enrage * 0.25f)
             ship.setJitter(dc_id, JITTER_COLOR, enrage, 3, 5f)
             ship.setJitterUnder(dc_id, JITTER_UNDER_COLOR, enrage, 20, 15f)
         }
@@ -164,12 +176,13 @@ class DaemonHeart : BaseHullMod() {
 
         // Daemons are self-repairing so...
         // basically just making sure they never spawn with D-mods
-        member.variant.hullMods.forEach { hm ->
-            if (Global.getSettings().getHullModSpec(hm).hasTag(Tags.HULLMOD_DMOD)) {
+        member.variant.hullMods
+            .filter { hm -> Global.getSettings().getHullModSpec(hm).hasTag(Tags.HULLMOD_DMOD) }
+            .forEach { hm ->
                 member.variant.removePermaMod(hm)
                 member.variant.removeMod(hm)
             }
-        }
+
 
         // Now we make a new captain if we don't have an AI captain already
         if (member.captain != null) {
@@ -186,17 +199,11 @@ class DaemonHeart : BaseHullMod() {
         if (member.hullSpec.hullId.contains("tahlan_DunScaith_dmn")) {
             die = 3 // Hel Scaith always gets an alpha
         }
-        val person: PersonAPI // yes, a "person"
-        if (die <= 1) {
-            person = Misc.getAICoreOfficerPlugin(Commodities.GAMMA_CORE).createPerson(Commodities.GAMMA_CORE, "tahlan_legioinfernalis", Misc.random)
-        } else if (die == 2) {
-            person = DaemonOfficerPlugin().createPerson(CORE_DAEMON, "tahlan_legioinfernalis", Misc.random)!!
-            member.stats.dynamic.getMod("individual_ship_recovery_mod").modifyFlat("tahlan_daemoncore", -100f)
-        } else {
-            person = DaemonOfficerPlugin().createPerson(CORE_ARCHDAEMON, "tahlan_legioinfernalis", Misc.random)!!
-            member.stats.dynamic.getMod("individual_ship_recovery_mod").modifyFlat("tahlan_archdaemoncore", -1000f)
+        member.captain = when (die) {
+            1 -> Misc.getAICoreOfficerPlugin(Commodities.GAMMA_CORE).createPerson(Commodities.GAMMA_CORE, "tahlan_legioinfernalis", Misc.random)
+            2 -> DaemonOfficerPlugin().createPerson(CORE_DAEMON, "tahlan_legioinfernalis", Misc.random)!!
+            else -> DaemonOfficerPlugin().createPerson(CORE_ARCHDAEMON, "tahlan_legioinfernalis", Misc.random)!!
         }
-        member.captain = person
     }
 
     override fun isApplicableToShip(ship: ShipAPI): Boolean {
@@ -204,37 +211,33 @@ class DaemonHeart : BaseHullMod() {
     }
 
     override fun getDescriptionParam(index: Int, hullSize: HullSize): String? {
-        if (index == 0) return "" + (ACC_BUFF * 100f).roundToInt() + Utils.txt("%")
-        if (index == 1) return "" + (MSSL_DAMAGE * 100f).roundToInt() + Utils.txt("%")
-        if (index == 2) return "" + (SPEED_CAP * 100f).roundToInt() + Utils.txt("%")
-        if (index == 3) return "" + (SPEED_BUFF * 100f).roundToInt() + Utils.txt("%")
-        if (index == 4) return "" + (PLAYER_NERF * 100f).roundToInt() + Utils.txt("%")
-        return if (index == 5) "" + SUPPLIES_PERCENT.roundToInt() + Utils.txt("%") else null
+        return when (index) {
+            0 -> "" + (SPEED_CAP * 100f).roundToInt() + txt("%")
+            1 -> "" + (SPEED_BUFF).roundToInt() + txt("su")
+            2 -> "" + (PLAYER_NERF * 100f).roundToInt() + txt("%")
+            3 -> "" + SUPPLIES_PERCENT.roundToInt() + txt("%")
+            else -> null
+        }
     }
 
     companion object {
-        //        private val MAG: MutableMap<HullSize, Int> = EnumMap(HullSize::class.java)
-        private val MAG = HashMap<HullSize, Int>()
-
-        init {
-            MAG[HullSize.FRIGATE] = 2
-            MAG[HullSize.DESTROYER] = 1
-            MAG[HullSize.CRUISER] = 0
-            MAG[HullSize.CAPITAL_SHIP] = 0
-        }
-
-        private val immuneCaptains = listOf(
-            CIEVE
+        private val MAG = mapOf(
+            HullSize.FRIGATE to 2,
+            HullSize.DESTROYER to 1,
+            HullSize.CRUISER to 0,
+            HullSize.CAPITAL_SHIP to 0,
+            HullSize.FIGHTER to 0
         )
 
-        private val counterCaptains = listOf(
-            SOTF_NIGHTINGALE
+        private val immuneCaptains = listOf(
+            CIEVE,
+            SOTF_SIERRA
         )
 
         private const val SUPPLIES_PERCENT = 100f
         private const val ACC_BUFF = 0.25f
         private const val MSSL_DAMAGE = 0.5f
-        private const val SPEED_BUFF = 0.2f
+        private const val SPEED_BUFF = 30f
         private const val SPEED_CAP = 0.6f
         private const val PLAYER_NERF = 0.9f
         private val JITTER_COLOR = Color(255, 0, 0, 30)

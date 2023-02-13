@@ -1,11 +1,12 @@
 package org.niatahl.tahlan.utils
 
 import com.fs.starfarer.api.Global
-import com.fs.starfarer.api.plugins.derelicts.IndEvo_ArtilleryStationPlacer
+import indevo.exploration.minefields.MineBeltTerrainPlugin
+import org.niatahl.tahlan.utils.TahlanIDs.LEGIO
+
 
 object IndEvoIntegrations {
 
-    val LEGIO = "tahlan_legioinfernalis"
     @JvmStatic
     fun addDefenses() {
         val sector = Global.getSector()
@@ -26,10 +27,14 @@ object IndEvoIntegrations {
             melchi.addIndustry("IndEvo_Artillery_railgun")
             adra.addCondition("IndEvo_ArtilleryStationCondition")
             adra.addIndustry("IndEvo_Artillery_missile")
-            IndEvo_ArtilleryStationPlacer.placeWatchtowers(Global.getSector().getStarSystem("Rubicon"), "tahlan_legioinfernalis")
+            //IndEvo_ArtilleryStationPlacer.placeWatchtowers(Global.getSector().getStarSystem("Rubicon"), "tahlan_legioinfernalis") // Fuck you, Hartley :V
         }
-
+        sector.getStarSystem("Rubicon").jumpPoints.forEach { point ->
+            val belt = MineBeltTerrainPlugin.addMineBelt(point, 500f, 100f, 30f, 40f, point.name + " Minefield")
+            belt.memoryWithoutUpdate.set("\$IndEvo_PlanetMinefieldKey",lucifron.primaryEntity)
+        }
     }
+
 
     fun upgradeDefenses() {
         val sector = Global.getSector()

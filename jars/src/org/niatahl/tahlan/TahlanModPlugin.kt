@@ -20,13 +20,13 @@ import org.dark.shaders.util.ShaderLib
 import org.dark.shaders.util.TextureData
 import org.json.JSONException
 import org.niatahl.tahlan.campaign.*
-import org.niatahl.tahlan.campaign.siege.LegioSiegeBaseIntel
 import org.niatahl.tahlan.plugins.CampaignPluginImpl
 import org.niatahl.tahlan.lostech.NXABarEventWiring
 import org.niatahl.tahlan.questgiver.Configuration
 import org.niatahl.tahlan.questgiver.Questgiver
 import org.niatahl.tahlan.utils.IndEvoIntegrations.addDefenses
 import org.niatahl.tahlan.utils.IndEvoIntegrations.upgradeDefenses
+import org.niatahl.tahlan.utils.TahlanIDs.LEGIO
 import org.niatahl.tahlan.utils.TahlanPeople
 import org.niatahl.tahlan.utils.Utils
 import org.niatahl.tahlan.weapons.ai.FountainAI
@@ -101,13 +101,13 @@ class TahlanModPlugin : BaseModPlugin() {
             FactionRelationPlugin.initFactionRelationships(sector)
 
             //Adding Legio to bounty system
-            SharedData.getData().personBountyEventData.addParticipatingFaction("tahlan_legioinfernalis")
+            SharedData.getData().personBountyEventData.addParticipatingFaction(LEGIO)
 
             sector.memoryWithoutUpdate["\$tahlan_haslegio"] = true
         } else {
-            sector.getFaction("tahlan_legioinfernalis").isShowInIntelTab = false
+            sector.getFaction(LEGIO).isShowInIntelTab = false
             if (HAS_NEX) {
-                sector.getFaction("tahlan_legioinfernalis").memoryWithoutUpdate["\$nex_respawn_cooldown"] = true
+                sector.getFaction(LEGIO).memoryWithoutUpdate["\$nex_respawn_cooldown"] = true
             }
         }
 
@@ -116,7 +116,6 @@ class TahlanModPlugin : BaseModPlugin() {
 
         //Rosenritter Blueprint Script
         Global.getSector().addScript(regaliablueprintscript())
-        LegioSiegeBaseIntel.log.info("added Rosenritter Blueprint script")
 
     }
 
@@ -181,7 +180,7 @@ class TahlanModPlugin : BaseModPlugin() {
                 addDaemons(sector)
             }
 
-            val legio = Global.getSector().getFaction("tahlan_legioinfernalis")
+            val legio = Global.getSector().getFaction(LEGIO)
             DAEMON_SHIPS.run { if (ENABLE_HARDMODE) forEach { legio.addPriorityShip(it) } else forEach { legio.removePriorityShip(it) } }
 
             // Adding new fun(tm) to existing saves
@@ -194,15 +193,15 @@ class TahlanModPlugin : BaseModPlugin() {
         }
         if (HAS_NEX) {
             if (Global.getSector().memoryWithoutUpdate.getBoolean("\$tahlan_triggered")) {
-                if (!NexConfig.getFactionConfig("tahlan_legioinfernalis").diplomacyTraits.contains("monstrous")) {
-                    NexConfig.getFactionConfig("tahlan_legioinfernalis").diplomacyTraits.add("monstrous")
+                if (!NexConfig.getFactionConfig(LEGIO).diplomacyTraits.contains("monstrous")) {
+                    NexConfig.getFactionConfig(LEGIO).diplomacyTraits.add("monstrous")
                 }
-                NexConfig.getFactionConfig("tahlan_legionifernalis").diplomacyPositiveChance["default"] = 0.1f
-                NexConfig.getFactionConfig("tahlan_legionifernalis").diplomacyNegativeChance["default"] = 2f
+                NexConfig.getFactionConfig(LEGIO).diplomacyPositiveChance["default"] = 0.1f
+                NexConfig.getFactionConfig(LEGIO).diplomacyNegativeChance["default"] = 2f
             } else {
-                NexConfig.getFactionConfig("tahlan_legioinfernalis").diplomacyTraits.remove("monstrous")
-                NexConfig.getFactionConfig("tahlan_legionifernalis").diplomacyPositiveChance["default"] = 0.5f
-                NexConfig.getFactionConfig("tahlan_legionifernalis").diplomacyNegativeChance["default"] = 1f
+                NexConfig.getFactionConfig(LEGIO).diplomacyTraits.remove("monstrous")
+                NexConfig.getFactionConfig(LEGIO).diplomacyPositiveChance["default"] = 0.5f
+                NexConfig.getFactionConfig(LEGIO).diplomacyNegativeChance["default"] = 1f
             }
         }
     }
@@ -265,15 +264,15 @@ class TahlanModPlugin : BaseModPlugin() {
             if (iLegioStartingCondition >= trigger) {
                 Global.getSector().memoryWithoutUpdate["\$tahlan_triggered"] = true
                 LOGGER.info("The Daemonic horde awakens")
-                val legio = sector.getFaction("tahlan_legioinfernalis")
+                val legio = sector.getFaction(LEGIO)
                 if (Misc.getCommissionFaction() !== legio) {
                     legio.setRelationship(sector.playerFaction.id, RepLevel.HOSTILE)
                     if (Misc.getCommissionFaction() != null) legio.setRelationship(Misc.getCommissionFactionId(), RepLevel.HOSTILE)
                 }
                 if (HAS_NEX) {
-                    NexConfig.getFactionConfig("tahlan_legioinfernalis").diplomacyTraits.add("monstrous")
-                    NexConfig.getFactionConfig("tahlan_legionifernalis").diplomacyPositiveChance["default"] = 0.1f
-                    NexConfig.getFactionConfig("tahlan_legionifernalis").diplomacyNegativeChance["default"] = 2f
+                    NexConfig.getFactionConfig(LEGIO).diplomacyTraits.add("monstrous")
+                    NexConfig.getFactionConfig(LEGIO).diplomacyPositiveChance["default"] = 0.1f
+                    NexConfig.getFactionConfig(LEGIO).diplomacyNegativeChance["default"] = 2f
                 }
                 addDaemons(sector)
                 upgradeDefenses()
@@ -359,13 +358,13 @@ class TahlanModPlugin : BaseModPlugin() {
         )
 
         private fun addDaemons(sector: SectorAPI) {
-            DAEMON_SHIPS.forEach { sector.getFaction("tahlan_legioinfernalis").addKnownShip(it, false) }
-            DAEMON_WINGS.forEach { sector.getFaction("tahlan_legioinfernalis").addKnownFighter(it, false) }
+            DAEMON_SHIPS.forEach { sector.getFaction(LEGIO).addKnownShip(it, false) }
+            DAEMON_WINGS.forEach { sector.getFaction(LEGIO).addKnownFighter(it, false) }
         }
 
         private fun removeDaemons(sector: SectorAPI) {
-            DAEMON_SHIPS.forEach { sector.getFaction("tahlan_legioinfernalis").removeKnownShip(it) }
-            DAEMON_WINGS.forEach { sector.getFaction("tahlan_legioinfernalis").removeKnownFighter(it) }
+            DAEMON_SHIPS.forEach { sector.getFaction(LEGIO).removeKnownShip(it) }
+            DAEMON_WINGS.forEach { sector.getFaction(LEGIO).removeKnownFighter(it) }
         }
 
         @Throws(IOException::class, JSONException::class)

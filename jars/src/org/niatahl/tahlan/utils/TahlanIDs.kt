@@ -1,6 +1,7 @@
 package org.niatahl.tahlan.utils
 
 object TahlanIDs {
+    const val LEGIO = "tahlan_legioinfernalis"
     const val NEURALLINK_COMM = "tahlan_neurallink"
 
     const val CORE_DAEMON = "tahlan_daemoncore"
@@ -9,4 +10,5 @@ object TahlanIDs {
     // SOTF references
     const val SOTF_NIGHTINGALE = "sotf_nightingale"
     const val SOTF_SIERRA = "sotf_sierra"
+    const val SOTF_CYWAR = "sotf_cyberwarfare"
 }
