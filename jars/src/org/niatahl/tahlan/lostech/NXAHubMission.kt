@@ -1,5 +1,6 @@
 package org.niatahl.tahlan.lostech
 
+import com.fs.starfarer.api.Global
 import com.fs.starfarer.api.PluginPick
 import com.fs.starfarer.api.campaign.*
 import com.fs.starfarer.api.campaign.econ.MarketAPI
@@ -10,10 +11,11 @@ import com.fs.starfarer.api.impl.campaign.ids.Conditions
 import com.fs.starfarer.api.impl.campaign.ids.Factions
 import com.fs.starfarer.api.impl.campaign.ids.FleetTypes
 import com.fs.starfarer.api.impl.campaign.ids.Tags
-import com.fs.starfarer.api.impl.campaign.missions.hub.HubMissionWithTriggers
 import com.fs.starfarer.api.impl.campaign.missions.hub.ReqMode
+import com.fs.starfarer.api.impl.campaign.rulecmd.salvage.special.ShipRecoverySpecial
 import com.fs.starfarer.api.ui.TooltipMakerAPI
 import com.fs.starfarer.api.util.Misc
+import data.scripts.util.MagicCampaign
 import org.niatahl.tahlan.questgiver.*
 import org.niatahl.tahlan.questgiver.Questgiver.game
 import org.niatahl.tahlan.questgiver.wispLib.*
@@ -37,6 +39,8 @@ class NXAHubMission : QGHubMissionWithBarEvent(MISSION_ID) {
         val allmother: PersonAPI
             get() = TahlanPeople.getPerson(TahlanPeople.FEARLESS) // TODO should be ALLMOTHER
                     ?: game.factory.createPerson().apply { name = FullName("ALLMOTHER", "", FullName.Gender.FEMALE) }
+
+        val NXA_HULLID = "tahlan_nxa"
     }
 
     class State(val map: MutableMap<String, Any?>) {
@@ -151,11 +155,10 @@ class NXAHubMission : QGHubMissionWithBarEvent(MISSION_ID) {
         state.startDateMillis = game.sector.clock.timestamp
 
         // Sets the system as the map objective.
-        makeImportant(state.meetingPlanet?.starSystem?.hyperspaceAnchor, null, Stage.GoMeetCieve)
+        makeImportant(state.meetingPlanet?.starSystem?.hyperspaceAnchor, null, Stage.GoMeetCieve, Stage.ReturnToOrigin)
         makePrimaryObjective(state.meetingPlanet?.starSystem?.hyperspaceAnchor)
-
+        makeImportant(state.meetingPlanet, null, Stage.GoMeetCieve)
         makeImportant(state.originalNXAStation, null, Stage.GoFindOriginalShipLocation)
-
 
         // TODO Nia look at fleet params, customize to liking.
         val lostechNXAFirstFleetFlag = "$${MISSION_ID}_lostechNXAFirstFleetFlag"
@@ -165,14 +168,14 @@ class NXAHubMission : QGHubMissionWithBarEvent(MISSION_ID) {
             beginWithinHyperspaceRangeTrigger(
                     state.originalNXAStation?.starSystem,
                     1f,
-                    true,
-                    Stage.GoMeetCieve
+                    false,
+                    Stage.GoFindOriginalShipLocation
             )
 
             triggerCreateFleet(
                     FleetSize.MEDIUM,
                     FleetQuality.LOWER,
-                    Factions.NEUTRAL, // TODO change to Lostech
+                    Factions.PIRATES, // TODO change to Lostech
                     FleetTypes.PATROL_MEDIUM,
                     state.originalNXAStation
             )
@@ -187,11 +190,59 @@ class NXAHubMission : QGHubMissionWithBarEvent(MISSION_ID) {
             triggerOrderFleetPatrol(false, state.originalNXAStation)
         }
 
-        // Shortly after starting AwaitAllmotherOffer stage, open the dialog with her.
-        // TODO check and make sure player isn't already in a dialog
+//        trigger {
+//            beginStageTrigger(Stage.TrackDownAndRecoverNXA)
+//            triggerCustomAction {
+//            }
+//        }
+
+        // Create NX-A in orbit and make it important.
         trigger {
-            beginCustomTrigger(DaysElapsedChecker(0.25f, this), Stage.AwaitAllmotherOffer)
-            triggerCustomAction { AllmotherOfferDialog().build().show(game.sector.campaignUI, game.sector.playerFleet) }
+            val lostechNXASecondFleetFlag = "$${MISSION_ID}_lostechNXASecondFleetFlag"
+            beginStageTrigger(Stage.TrackDownAndRecoverNXA)
+
+            // Create strong Lostech fleet around NXA
+            triggerCreateFleet(
+                    FleetSize.LARGE,
+                    FleetQuality.LOWER,
+                    Factions.PIRATES, // TODO change to Lostech
+                    FleetTypes.PATROL_MEDIUM,
+                    state.nxaSystem
+            )
+            triggerMakeHostile()
+            triggerMakeFleetIgnoreOtherFleetsExceptPlayer()
+            triggerFleetNoAutoDespawn()
+            triggerFleetNoJump()
+            triggerMakeFleetIgnoredByOtherFleets()
+            triggerAutoAdjustFleetStrengthMajor()
+            triggerPickLocationAroundEntity(state.nxaSystem?.star, 200f, 3000f)
+            triggerSpawnFleetAtPickedLocation(lostechNXASecondFleetFlag, null)
+
+            triggerCustomAction {
+                val defenceFleet = state.nxaSystem?.fleets?.firstOrNull { it.memoryWithoutUpdate.contains(lostechNXASecondFleetFlag) }
+                val nxa = MagicCampaign.createDerelict(
+                        "tahlan_nxa_experimental",
+                        ShipRecoverySpecial.ShipCondition.GOOD,
+                        false,
+                        0,
+                        true,
+                        defenceFleet,
+                        30f,
+                        1000f,
+                        30f
+                )
+                nxa.addTag("nxa")
+                MagicCampaign.placeOnStableOrbit(nxa, true)
+                makeImportant(nxa, null, Stage.TrackDownAndRecoverNXA)
+                defenceFleet?.addAssignment(FleetAssignment.PATROL_SYSTEM, nxa, 1000000.0F)
+//                makeImportant(state.nxaSystem?.hyperspaceAnchor, null, Stage.TrackDownAndRecoverNXA)
+            }
+        }
+
+        // Shortly after starting AwaitAllmotherOffer stage, open the dialog with her.
+        trigger {
+            beginCustomTrigger(DaysElapsedChecker(1f, this), Stage.AwaitAllmotherOffer)
+            triggerCustomAction { Global.getSector().addScript(AllmotherContactScript()) }
         }
     }
 
@@ -213,8 +264,8 @@ class NXAHubMission : QGHubMissionWithBarEvent(MISSION_ID) {
                 }
                 // Found the NX-A
                 currentStage == Stage.TrackDownAndRecoverNXA
-                        && interactionTarget is CampaignFleetAPI
-                        && interactionTarget.flagship.hullId == "tahlan_nxa" -> {
+                        && interactionTarget is CustomCampaignEntityAPI
+                        && interactionTarget.hasTag("nxa") -> {
                     PluginPick(
                             RecoverNXADialog().build(),
                             CampaignPlugin.PickPriority.MOD_SPECIFIC
@@ -252,27 +303,52 @@ class NXAHubMission : QGHubMissionWithBarEvent(MISSION_ID) {
      * Bullet points on left side of intel.
      */
     override fun addNextStepText(info: TooltipMakerAPI, tc: Color, pad: Float): Boolean {
-        return when (currentStage) {
-            Stage.GoMeetCieve -> {
-                info.addPara(pad, tc) {
-                    game.text["nxa_missionSubtitle"].replacePlaceholders()
-                }
-                true
+        when (currentStage) {
+            Stage.GoMeetCieve -> info.addPara(pad, tc) {
+                game.text["nxa_missionSubtitle"].replacePlaceholders()
             }
 
-            else -> false
+            Stage.GoFindOriginalShipLocation -> info.addPara(pad, tc) {
+                "Go find ship in ${state.meetingPlanet?.starSystem?.nameWithLowercaseTypeShort}"
+            }
+
+            Stage.TrackDownAndRecoverNXA -> info.addPara(pad, tc) {
+                "Go find ship for real in ${state.nxaSystem?.nameWithLowercaseTypeShort}"
+            }
+
+            Stage.AwaitAllmotherOffer -> info.addPara(pad, tc) {
+                "Go talk to Cieve in ${state.nxaSystem?.nameWithLowercaseTypeShort} (but actually wait for ALLMOTHER)"
+            }
+
+            Stage.ReturnToOrigin -> info.addPara(pad, tc) {
+                "Go talk to Cieve in ${state.nxaSystem?.nameWithLowercaseTypeShort}"
+            }
+
+            Stage.Completed -> return false
+            Stage.Abandoned -> return false
         }
+
+        return true // false if no subtitle for info
     }
 
     /**
      * Description on right side of intel.
      */
     override fun addDescriptionForCurrentStage(info: TooltipMakerAPI, width: Float, height: Float) {
-        // TODO
+        // TODO taking the lazy way, feel free to customize
+        addNextStepText(info, Misc.getTextColor(), 0f)
+        return
         when (currentStage) {
             Stage.GoMeetCieve -> {
                 info.addPara { game.text["nxa_missionSubtitle"].replacePlaceholders() }
             }
+
+            Stage.GoFindOriginalShipLocation -> {}
+            Stage.TrackDownAndRecoverNXA -> {}
+            Stage.AwaitAllmotherOffer -> {}
+            Stage.ReturnToOrigin -> {}
+            Stage.Completed -> {}
+            Stage.Abandoned -> {}
         }
     }
 

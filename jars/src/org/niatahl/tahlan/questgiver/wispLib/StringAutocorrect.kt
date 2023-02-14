@@ -16,11 +16,11 @@ object StringAutocorrect {
         if (toSearch.contains(idInner)) {
             return idInner
         }
-        idInner = idInner.lowercase(Locale.getDefault())
+        idInner = idInner.toLowerCase()
         var bestMatch: String? = null
         var typoCorrectionThreshold = 0.9
         for (str in toSearch) {
-            val distance = calcSimilarity(idInner, str.lowercase(Locale.getDefault()))
+            val distance = calcSimilarity(idInner, str.toLowerCase())
             if (distance == 1.0) {
                 return str
             }
@@ -36,7 +36,7 @@ object StringAutocorrect {
      * From Console Command's `CommandUtils`.
      */
     fun findBestFactionMatch(name: String): FactionAPI? {
-        val nameInner = name.lowercase(Locale.getDefault())
+        val nameInner = name.toLowerCase()
         var bestMatch: FactionAPI? = null
         var typoCorrectionThreshold = 0.9
 
@@ -46,7 +46,7 @@ object StringAutocorrect {
 
         // Check IDs first in case multiple factions share the same name
         for (faction in Global.getSector().allFactions) {
-            val distance = calcSimilarity(nameInner, faction.id.lowercase(Locale.getDefault()))
+            val distance = calcSimilarity(nameInner, faction.id.toLowerCase())
             if (distance == 1.0) {
                 return faction
             }
@@ -59,7 +59,7 @@ object StringAutocorrect {
         // Search again by name if no matching ID is found
         if (bestMatch == null) {
             for (faction in Global.getSector().allFactions) {
-                val distance = calcSimilarity(nameInner, faction.displayName.lowercase(Locale.getDefault()))
+                val distance = calcSimilarity(nameInner, faction.displayName.toLowerCase())
                 if (distance == 1.0) {
                     return faction
                 }

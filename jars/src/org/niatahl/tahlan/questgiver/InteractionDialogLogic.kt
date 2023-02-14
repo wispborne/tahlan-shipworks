@@ -1,8 +1,8 @@
 package org.niatahl.tahlan.questgiver
 
 import com.fs.starfarer.api.campaign.InteractionDialogAPI
-import org.niatahl.tahlan.questgiver.Questgiver.game
 import org.niatahl.tahlan.questgiver.IInteractionLogic.Companion.CONTINUE_BUTTON_ID
+import org.niatahl.tahlan.questgiver.Questgiver.game
 import org.niatahl.tahlan.questgiver.wispLib.ServiceLocator
 
 /**
@@ -14,9 +14,9 @@ import org.niatahl.tahlan.questgiver.wispLib.ServiceLocator
  * such as `mission: Telos1HubMission = game.sector.intelManager.findFirst()!!`.
  */
 abstract class InteractionDialogLogic<S : InteractionDialogLogic<S>>(
-    @Transient override var onInteractionStarted: OnInteractionStarted<S>? = null,
-    @Transient override var people: People<S>? = null,
-    @Transient final override var pages: List<IInteractionLogic.Page<S>>
+        @Transient override var onInteractionStarted: OnInteractionStarted<S>? = null,
+        @Transient override var people: People<S>? = null,
+        @Transient final override var pages: List<IInteractionLogic.Page<S>>
 ) : IInteractionLogic<S> {
 
     init {
@@ -31,7 +31,7 @@ abstract class InteractionDialogLogic<S : InteractionDialogLogic<S>>(
      * Not serialized.
      */
     open class PageNavigator<S : IInteractionLogic<S>>(
-        internal var interactionDefinition: IInteractionLogic<S>?
+            internal var interactionDefinition: IInteractionLogic<S>?
     ) : IInteractionLogic.IPageNavigator<S> {
         private val pages by lazy { interactionDefinition!!.pages }
         private val dialog by lazy { interactionDefinition!!.dialog }
@@ -49,11 +49,11 @@ abstract class InteractionDialogLogic<S : InteractionDialogLogic<S>>(
          */
         override fun goToPage(pageId: Any) {
             showPage(
-                pages.firstOrNull { (it.id == pageId) || (it.id.toString() == pageId.toString()) }
-                    ?: throw NoSuchElementException(
-                        "No page with id '$pageId'." +
-                                "\nPages: ${pages.joinToString { "'${it.id}'" }}."
-                    )
+                    pages.firstOrNull { (it.id == pageId) || (it.id.toString() == pageId.toString()) }
+                            ?: throw NoSuchElementException(
+                                    "No page with id '$pageId'." +
+                                            "\nPages: ${pages.joinToString { "'${it.id}'" }}."
+                            )
             )
         }
 
@@ -78,11 +78,12 @@ abstract class InteractionDialogLogic<S : InteractionDialogLogic<S>>(
          * Useful for showing/hiding certain options after choosing one.
          */
         override fun refreshOptions() {
-            game.logger.d { "Clearing options." }
-            dialog.optionPanel.clearOptions()
-
             if (!isWaitingOnUserToPressContinue) {
+                game.logger.d { "Clearing options." }
+                dialog.optionPanel.clearOptions()
                 showOptions(currentPage!!.options)
+            } else {
+                game.logger.d { "Not clearing options because we are at a 'Continue' pause (an option without a page, so we can't refresh from a page)." }
             }
         }
 
@@ -94,14 +95,14 @@ abstract class InteractionDialogLogic<S : InteractionDialogLogic<S>>(
 
             if (page.image != null) {
                 dialog.visualPanel.showImagePortion(
-                    page.image.category,
-                    page.image.id,
-                    page.image.width,
-                    page.image.height,
-                    page.image.xOffset,
-                    page.image.yOffset,
-                    page.image.displayWidth,
-                    page.image.displayHeight
+                        page.image.category,
+                        page.image.id,
+                        page.image.width,
+                        page.image.height,
+                        page.image.xOffset,
+                        page.image.yOffset,
+                        page.image.displayWidth,
+                        page.image.displayHeight
                 )
             }
 
@@ -145,37 +146,37 @@ abstract class InteractionDialogLogic<S : InteractionDialogLogic<S>>(
 
         override fun showOptions(options: List<IInteractionLogic.Option<S>>) {
             options
-                .filter { it.showIf(interactionDefinition as S) }
-                .forEach { option ->
-                    val text = option.text(interactionDefinition as S)
-                    game.logger.d { "Adding option ${option.id} with text '$text' and shortcut ${option.shortcut}." }
+                    .filter { it.showIf(interactionDefinition as S) }
+                    .forEach { option ->
+                        val text = option.text(interactionDefinition as S)
+                        game.logger.d { "Adding option ${option.id} with text '$text' and shortcut ${option.shortcut}." }
 
-                    if (option.textColor != null) {
-                        dialog.optionPanel.addOption(
-                            /* text = */ text,
-                            /* data = */ option.id,
-                            /* color = */ option.textColor,
-                            /* tooltip = */ option.tooltip?.invoke(interactionDefinition as S)
-                        )
-                    } else {
-                        dialog.optionPanel.addOption(
-                            /* text = */ text,
-                            /* data = */ option.id,
-                            /* tooltip = */ option.tooltip?.invoke(interactionDefinition as S)
-                        )
-                    }
+                        if (option.textColor != null) {
+                            dialog.optionPanel.addOption(
+                                    /* text = */ text,
+                                    /* data = */ option.id,
+                                    /* color = */ option.textColor,
+                                    /* tooltip = */ option.tooltip?.invoke(interactionDefinition as S)
+                            )
+                        } else {
+                            dialog.optionPanel.addOption(
+                                    /* text = */ text,
+                                    /* data = */ option.id,
+                                    /* tooltip = */ option.tooltip?.invoke(interactionDefinition as S)
+                            )
+                        }
 
-                    if (option.shortcut != null) {
-                        dialog.optionPanel.setShortcut(
-                            option.id,
-                            option.shortcut.code,
-                            option.shortcut.holdCtrl,
-                            option.shortcut.holdAlt,
-                            option.shortcut.holdShift,
-                            false
-                        )
+                        if (option.shortcut != null) {
+                            dialog.optionPanel.setShortcut(
+                                    option.id,
+                                    option.shortcut.code,
+                                    option.shortcut.holdCtrl,
+                                    option.shortcut.holdAlt,
+                                    option.shortcut.holdShift,
+                                    false
+                            )
+                        }
                     }
-                }
         }
 
 
@@ -186,11 +187,11 @@ abstract class InteractionDialogLogic<S : InteractionDialogLogic<S>>(
             } else {
                 // Otherwise, look for the option they pressed
                 val optionSelected = pages
-                    .flatMap { page ->
-                        page.options
-                            .filter { option -> option.id == optionData }
-                    }.firstOrNull()
-                    ?: return
+                        .flatMap { page ->
+                            page.options
+                                    .filter { option -> option.id == optionData }
+                        }.firstOrNull()
+                        ?: return
 
                 optionSelected.onOptionSelected(interactionDefinition as S, this)
             }
@@ -214,9 +215,9 @@ abstract class InteractionDialogLogic<S : InteractionDialogLogic<S>>(
         internal set
 
     fun build(): InteractionDialog<S> =
-        object : InteractionDialog<S>() {
-            override fun createInteractionDialogLogic(): S = this@InteractionDialogLogic as S
-        }
+            object : InteractionDialog<S>() {
+                override fun createInteractionDialogLogic(): S = this@InteractionDialogLogic as S
+            }
 }
 
 fun IInteractionLogic.Image.spriteName(game: ServiceLocator) = game.settings.getSpriteName(this.category, this.id)
